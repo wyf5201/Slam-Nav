@@ -1,0 +1,326 @@
+<?xml version="1.0"?>
+<robot name="wyf" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- ////////////////////////////////////////////////
+   PROPERTY LIST ///////////////////////////////////////
+   //////////////////////////////////////////////////// -->
+
+    <xacro:property name="M_PI" value="3.1415926" />
+    <xacro:property name="base_mass" value="1" />
+    <xacro:property name="base_size_L" value="0.5" />
+    <xacro:property name="base_size_W" value="0.4" />
+    <xacro:property name="base_size_H" value="0.1" />
+
+    <xacro:property name="wheel_mass" value="0.2" />
+    <xacro:property name="wheel_radius" value="0.06" />
+    <xacro:property name="wheel_length" value="0.025" />
+    <xacro:property name="wheel_joint_x" value="0.18" />
+    <xacro:property name="wheel_joint_y" value="0.19" />
+    <xacro:property name="wheel_joint_z" value="0.05" />
+
+    <xacro:property name="pole_mass" value="0.2" />
+    <xacro:property name="pole_size_L" value="0.02" />
+    <xacro:property name="pole_size_W" value="0.02" />
+    <xacro:property name="pole_size_H" value="0.45" />
+    <xacro:property name="pole_joint_x" value="0.23" />
+    <xacro:property name="pole_joint_y" value="0.18" />
+    <xacro:property name="pole_joint_z" value="0.2" />
+
+
+    <!-- ////////////////////////////////////////////////
+   Defining the colors used in this robot///////////////
+   //////////////////////////////////////////////////// -->
+
+    <material name="yellow">
+        <color rgba="1 0.4 0 1" />
+    </material>
+    <material name="black">
+        <color rgba="0 0 0 0.95" />
+    </material>
+    <material name="gray">
+        <color rgba="0.75 0.75 0.75 1" />
+    </material>
+    <material name="White">
+        <color rgba="1 1 1 1" />
+    </material>
+    <material name="Blue">
+        <color rgba="0 0 1 1" />
+    </material>
+
+
+    <!-- ////////////////////////////////////////////////
+   Macro for inertia matrix/////////////////////////////
+   //////////////////////////////////////////////////// -->
+    <xacro:macro name="cylinder_inertial_matrix" params="m r h">
+        <inertial>
+            <mass value="${m}" />
+            <inertia ixx="${m*(3*r*r+h*h)/12}" ixy="0" ixz="0" iyy="${m*(3*r*r+h*h)/12}" iyz="0" izz="${m*r*r/2}" />
+        </inertial>
+    </xacro:macro>
+
+
+    <xacro:macro name="box_inertial_matrix" params="m a b c">
+        <inertial>
+            <mass value="${m}" />
+            <inertia ixx="${m*(b*b+c*c)/12}" ixy="0" ixz="0" iyy="${m*(c*c+a*a)/12}" iyz="0" izz="${m*(a*a+b*b)/12}" />
+        </inertial>
+    </xacro:macro>
+
+
+    <!-- ////////////////////////////////////////////////
+   Macro for robot wheel/////////////////////////////
+   //////////////////////////////////////////////////// -->
+
+    <xacro:macro name="wheel" params="prefix1 prefix2 reflect1 reflect2">
+
+
+        <joint name="${prefix1}_${prefix2}_wheel_joint" type="continuous">
+
+            <origin xyz="${reflect1*wheel_joint_x} ${reflect2*wheel_joint_y} ${-wheel_joint_z}" rpy="0 0 0" />
+            <parent link="base_link" />
+            <child link="${prefix1}_${prefix2}_wheel_link" />
+            <axis xyz="0 1 0" />
+<limit effort="100" velocity="100"/>  			<!--limit 设置关节的速度、力和半径（仅当关节是revolute或prismatic时）-->
+        <joint_properties damping="0.0" friction="0.0"/>  	<!--joint_properties设置一些属性 阻尼系数 摩擦系数-->
+
+        </joint>
+
+
+        <link name="${prefix1}_${prefix2}_wheel_link">
+            <visual>
+                <origin xyz="0 0 0" rpy="${M_PI/2} 0 0" />
+
+                <geometry>
+                    <cylinder radius="${wheel_radius}" length="${wheel_length}" />
+                </geometry>
+
+                <material name="black" />
+            </visual>
+
+
+            <collision>
+                <origin xyz="0 0 0" rpy="${M_PI/2} 0 0" />
+
+                <geometry>
+                    <cylinder radius="${wheel_radius}" length="${wheel_length}" />
+                </geometry>
+
+            </collision>
+
+            <xacro:cylinder_inertial_matrix m="${wheel_mass}" r="${wheel_radius}" h="${wheel_length}" />
+        </link>
+
+
+        <gazebo reference="${prefix1}_${prefix2}_wheel_link">
+            <material>Gazebo/Black</material>
+        </gazebo>
+
+
+        <!-- /////////////////////////////////////////////////Transmission is important to link the joints and the controller //////////////////////////////////-->
+        <transmission name="${prefix1}_${prefix2}_wheel_joint_trans">
+            <type>transmission_interface/SimpleTransmission</type>
+            <joint name="${prefix1}_${prefix2}_wheel_joint">
+                <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+            </joint>
+
+            <actuator name="${prefix1}_${prefix2}_wheel_joint_motor">
+                <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+                <mechanicalReduction>1</mechanicalReduction>
+            </actuator>
+
+        </transmission>
+    </xacro:macro>
+
+
+    <!-- ////////////////////////////////////////////////
+   Macro for robot pole/////////////////////////////
+   //////////////////////////////////////////////////// -->
+
+    <xacro:macro name="pole" params="prefix1 prefix2 reflect1 reflect2">
+
+        <joint name="${prefix1}_${prefix2}_pole_joint" type="fixed">
+
+            <origin xyz="${reflect1*pole_joint_x} ${reflect2*pole_joint_y} ${pole_joint_z}" rpy="0 0 0" />
+            <parent link="base_link" />
+            <child link="${prefix1}_${prefix2}_pole_link" />
+            <axis xyz="0 1 0" />
+            <limit effort="100" velocity="100"/>  			<!--limit 设置关节的速度、力和半径（仅当关节是revolute或prismatic时）-->
+        <joint_properties damping="0.0" friction="0.0"/>  	<!--joint_properties设置一些属性 阻尼系数 摩擦系数-->
+        </joint>
+
+
+        <link name="${prefix1}_${prefix2}_pole_link">
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <box size="${pole_size_L} ${pole_size_W} ${pole_size_H}" />
+                </geometry>
+                <material name="White" />
+            </visual>
+
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <box size="${pole_size_L} ${pole_size_W} ${pole_size_H}" />
+                </geometry>
+            </collision>
+
+            <xacro:box_inertial_matrix m="${pole_mass}" a="${pole_size_L}" b="${pole_size_W}" c="${pole_size_H}" />
+        </link>
+
+        <gazebo reference="${prefix1}_${prefix2}_pole_link">
+            <material>Gazebo/White</material>
+        </gazebo>
+    </xacro:macro>
+
+
+    <!-- ////////////////////////////////////////////////
+footprint      /////////////////////////////
+   //////////////////////////////////////////////////// -->
+    <xacro:macro name="wyf_base_gazebo">
+
+        <link name="base_footprint">
+            <visual>
+                <origin xyz="0 0 0" rqy="0 0 0" />
+                <geometry>
+                    <box size="0.001 0.001 0.001" />
+                </geometry>
+            </visual>
+        </link>
+
+
+        <gazebo reference="base_footprint">
+            <turnGravityOff>false</turnGravityOff>
+        </gazebo>
+
+
+        <!-- ////////////////////////////////////////////////
+ base_link         /////////////////////////////
+   //////////////////////////////////////////////////// -->
+
+        <joint name="base_footprint_joint" type="fixed">
+            <origin xyz="0 0 ${base_size_H/2}" rpy="0 0 0" />
+            <parent link="base_footprint" />
+            <child link="base_link" />
+            <limit effort="100" velocity="100"/>  			<!--limit 设置关节的速度、力和半径（仅当关节是revolute或prismatic时）-->
+        <joint_properties damping="0.0" friction="0.0"/>  	<!--joint_properties设置一些属性 阻尼系数 摩擦系数-->
+        </joint>
+
+
+        <link name="base_link">
+
+            <visual>
+                <origin xyz=" 0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <box size="${base_size_L} ${base_size_W} ${base_size_H}" />
+                </geometry>
+                <material name="yellow" />
+            </visual>
+
+
+            <collision>
+                <origin xyz=" 0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <box size="${base_size_L} ${base_size_W} ${base_size_H}" />
+                </geometry>
+            </collision>
+
+            <xacro:box_inertial_matrix m="${base_mass}" a="${base_size_L}" b="${base_size_W}" c="${base_size_H}" />
+
+        </link>
+
+        <gazebo reference="base_link">
+            <material>Gazebo/Blue</material>
+        </gazebo>
+
+
+        <!-- ////////////////////////////////////////////////
+up_link         /////////////////////////////
+   //////////////////////////////////////////////////// -->
+
+
+        <joint name="up_base_joint" type="fixed">
+            <origin xyz="0 0 ${pole_size_H}" rpy="0 0 0" />
+            <parent link="base_link" />
+            <child link="up_link" />
+            <limit effort="100" velocity="100"/>  			<!--limit 设置关节的速度、力和半径（仅当关节是revolute或prismatic时）-->
+        <joint_properties damping="0.0" friction="0.0"/>  	<!--joint_properties设置一些属性 阻尼系数 摩擦系数-->
+        </joint>
+
+        <link name="up_link">
+
+            <visual>
+                <origin xyz=" 0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <box size="${base_size_L} ${base_size_W} ${base_size_H/2}" />
+                </geometry>
+                <material name="yellow" />
+            </visual>
+
+
+            <collision>
+                <origin xyz=" 0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <box size="${base_size_L} ${base_size_W} ${base_size_H}" />
+                </geometry>
+            </collision>
+
+            <xacro:box_inertial_matrix m="${base_mass}" a="${base_size_L}" b="${base_size_W}" c="${base_size_H}" />
+
+        </link>
+
+        <gazebo reference="up_link">
+            <material>Gazebo/Blue</material>
+        </gazebo>
+
+
+        <!-- ////////////////////////////////////////////////
+   宏调用///////////////////////////////////////////
+   //////////////////////////////////////////////////// -->
+
+        <xacro:wheel prefix1="left" prefix2="front" reflect1="1" reflect2="1" />
+        <xacro:wheel prefix1="left" prefix2="back" reflect1="-1" reflect2="1" />
+        <xacro:wheel prefix1="right" prefix2="front" reflect1="1" reflect2="-1" />
+        <xacro:wheel prefix1="right" prefix2="back" reflect1="-1" reflect2="-1" />
+
+        <xacro:pole prefix1="left" prefix2="front" reflect1="1" reflect2="1" />
+        <xacro:pole prefix1="left" prefix2="back" reflect1="-1" reflect2="1" />
+        <xacro:pole prefix1="right" prefix2="front" reflect1="1" reflect2="-1" />
+        <xacro:pole prefix1="right" prefix2="back" reflect1="-1" reflect2="-1" />
+
+
+        <!-- ////////////////////////////////////////////////
+   controller///////////////////////////////////////////
+   //////////////////////////////////////////////////// -->
+          <gazebo>
+            <plugin name="skid_steer_drive_controller" filename="libgazebo_ros_skid_steer_drive.so">
+                   
+                <rosDebugLevel>Debug</rosDebugLevel>
+                <publishWheelTF>true</publishWheelTF>
+                <robotNamespace>/</robotNamespace>
+                <publishTf>1</publishTf>
+                <publishWheelJointState>true</publishWheelJointState>
+                <alwaysOn>true</alwaysOn>
+                <updateRate>100.0</updateRate>
+                <legacyMode>true</legacyMode>
+                
+               <leftFrontJoint>left_front_wheel_joint</leftFrontJoint>
+               <rightFrontJoint>right_front_wheel_joint</rightFrontJoint>
+               <leftRearJoint>left_back_wheel_joint</leftRearJoint>
+                <rightRearJoint>right_back_wheel_joint</rightRearJoint>
+                
+                <wheelSeparation>${wheel_joint_y*2}</wheelSeparation>
+                <wheelDiameter>${2*wheel_radius}</wheelDiameter>
+                <broadcastTF>1</broadcastTF>
+                <wheelTorque>30</wheelTorque>
+                <wheelAcceleration>1.8</wheelAcceleration>
+                <commandTopic>cmd_vel</commandTopic>
+                <odometryFrame>odom</odometryFrame> 
+                <odometryTopic>odom</odometryTopic> 
+                <robotBaseFrame>base_footprint</robotBaseFrame>
+            </plugin>
+        </gazebo>
+    </xacro:macro>
+
+
+</robot>    	
